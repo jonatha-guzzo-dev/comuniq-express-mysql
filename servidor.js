@@ -6,40 +6,77 @@ const { DateTime } = require('luxon');
 const path = require('path');
 const app = express();
 app.set('view engine', 'ejs');
-app.use(express.static("public"));
+app.use(express.static(path.join(__dirname, 'public')));
 const crypto = require('crypto');
-const bcrypt = require('bcrypt');
+const bcrypt = require('bcryptjs');
 const { Console } = require('console');
 const moment = require('moment');
 var session = require('express-session');
-const con = mysql.createConnection({
-    host: "localhost",
-    user: "root",
-    password: "",
-    database: "comuniq_ifsul_gravatai",
-    port: 3306
-
+const con = mysql.createPool({
+    host: process.env.DB_HOST || "localhost",
+    user: process.env.DB_USER || "root",
+    password: process.env.DB_PASSWORD || "",
+    database: process.env.DB_NAME || "comuniq_ifsul_gravatai",
+    port: process.env.DB_PORT || 3306,
+    ssl: process.env.DB_HOST ? { minVersion: 'TLSv1.2', rejectUnauthorized: true } : undefined,
+    connectionLimit: 5
 });
+
+con.getConnection(function (err, connection) {
+    if (err) {
+        console.error("Erro ao conectar ao banco de dados:", err.message);
+    } else {
+        console.log("Conectado ao banco de dados.");
+        connection.release();
+    }
+});
+
+const MySQLStore = require('express-mysql-session')(session);
+const sessionStore = new MySQLStore({}, con);
+
+app.set('trust proxy', 1);
+app.set('views', path.join(__dirname, 'views'));
+
 app.use(session({
-    secret: '2C44-4D44-WppQ38S',
+    key: 'comuniq_sid',
+    secret: process.env.SESSION_SECRET || '2C44-4D44-WppQ38S',
+    store: sessionStore,
     resave: false,
     saveUninitialized: false,
-    cookie: {
-        maxAge: 1800000
-    }
+    cookie: { maxAge: 1800000 }
 }));
+
+
+app.use(express.urlencoded({ extended: true }));
+app.use(express.json());
+
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
 
 
 
-con.connect(function (err) {
-    if (err) {
-        console.error("Erro ao conectar ao banco de dados:", err.message);
-    } else {
-        console.log("Conectado ao banco de dados MySQL.");
-    }
+
+const cloudinary = require('cloudinary').v2;
+cloudinary.config({
+    cloud_name: process.env.petypxbn,
+    api_key: process.env.974651275577785,
+    api_secret: process.env.vw8SDsD99EssmE_tv055jFe1rpg
 });
+
+function salvarImagem(file, pasta, nome, callback) {
+    cloudinary.uploader.upload(file.filepath, {
+        public_id: 'comuniq/' + pasta + '/' + nome
+    }, function (err, result) {
+        callback(err, result);
+    });
+}
+
+// Imagens que não existem em public/ (as enviadas depois do deploy) vêm do Cloudinary
+app.get('/imagens/:a/:pasta/:arquivo', function (req, res) {
+    res.redirect('https://res.cloudinary.com/' + process.env.petypxbn +
+        '/image/upload/comuniq/' + req.params.pasta + '/' + req.params.arquivo);
+});
+
 
 
 
@@ -173,7 +210,7 @@ app.post('/estudante/cadastro/back_end', function (req, res) {
             var nomefoto_E = files.foto_E[0].newFilename + ext;
             var newpath = path.join(__dirname, 'public/imagens/estudante/estudante_cadastro', nomefoto_E);
 
-            fs.rename(oldpath, newpath, function (err) {
+        salvarImagem(files.foto_E[0], 'estudante_cadastro', files.foto_E[0].newFilename, function (err) {
                 if (err) {
                     console.error("Erro ao mover o arquivo:", err);
                     return res.status(500).send("Erro no upload de imagem");
@@ -410,26 +447,17 @@ app.get('/estudante/comentario/front_end', verificarEstudante, (req, res) => {
       });
     });
   });
-  
+
+
+
+
+
   app.post('/estudante/comentario/back_end', function (req, res) {
-
-
     if (!req.session.loggedin) {
         return res.redirect('/estudante/login/frontend');
     }
 
-    var form = new formidable.IncomingForm({
-        allowEmptyFiles: true,
-        minFileSize: 0  
-    });
-
-    form.uploadDir = path.join(__dirname, 'public/imagens/estudante/estudante_comentario'); 
-    form.keepExtensions = true; 
-    form.multiples = false;
-
-    if (!fs.existsSync(form.uploadDir)) {
-        fs.mkdirSync(form.uploadDir, { recursive: true });
-    }
+    var form = new formidable.IncomingForm({ allowEmptyFiles: true, minFileSize: 0 });
 
     form.parse(req, (err, fields, files) => {
         if (err) {
@@ -444,52 +472,47 @@ app.get('/estudante/comentario/front_end', verificarEstudante, (req, res) => {
 
         var comentario = fields.comentario_E?.[0] || '';
         var categoria = fields.categoria_comentario_E?.[0] || '';
-
         const now = DateTime.now().setZone('America/Sao_Paulo');
         var data = now.toFormat('yyyy-MM-dd HH:mm:ss');
 
-        let foto = '';
+        const arquivo = files.foto_comentario_E && files.foto_comentario_E[0];
+        const temFoto = arquivo && arquivo.originalFilename && arquivo.size > 0;
 
-
-        if (files.foto_comentario_E && files.foto_comentario_E.length > 0 && files.foto_comentario_E[0].originalFilename) {
-            const file = files.foto_comentario_E[0];
-            const oldPath = file.filepath;
-            const newPath = path.join(form.uploadDir, file.originalFilename);
-
-            try {
-                fs.renameSync(oldPath, newPath);
-                foto = file.originalFilename;
-            } catch (err) {
-                console.error("Erro ao mover arquivo:", err);
-            }
+        if (!temFoto) {
+            return buscarEixo('');
         }
 
-        var buscarCategoria = "SELECT id_eixo FROM eixo WHERE descricao_subeixo = ?";
-        con.query(buscarCategoria, [categoria], function (err, result) {
+        const nomeFoto = arquivo.newFilename + path.extname(arquivo.originalFilename);
+        salvarImagem(arquivo, 'estudante_comentario', arquivo.newFilename, function (err) {
             if (err) {
-                console.error("Erro ao buscar categoria:", err);
-                return res.status(500).send("Erro ao buscar categoria.");
+                console.error("Erro no upload da imagem:", err);
+                return buscarEixo('');
             }
-
-            if (result.length === 0) {
-                return res.status(400).send("Categoria inválida. Nenhum eixo correspondente encontrado.");
-            }
-        
-            const id_eixo_fk = result[0].id_eixo; 
-            inserirComentario(id_eixo_fk);
+            buscarEixo(nomeFoto);
         });
 
-        function inserirComentario(categoria) {
-            var sql = "INSERT INTO ESTUDANTE_COMENTARIO (id_E, comentario_E, id_eixo_fk, data_comentario_E, foto_comentario_E) VALUES ?";
-            var values = [[id_E, comentario, categoria, data, foto]];
+        function buscarEixo(foto) {
+            var buscarCategoria = "SELECT id_eixo FROM eixo WHERE descricao_subeixo = ?";
+            con.query(buscarCategoria, [categoria], function (err, result) {
+                if (err) {
+                    console.error("Erro ao buscar categoria:", err);
+                    return res.status(500).send("Erro ao buscar categoria.");
+                }
+                if (result.length === 0) {
+                    return res.status(400).send("Categoria inválida. Nenhum eixo correspondente encontrado.");
+                }
+                inserirComentario(result[0].id_eixo, foto);
+            });
+        }
 
+        function inserirComentario(id_eixo, foto) {
+            var sql = "INSERT INTO ESTUDANTE_COMENTARIO (id_E, comentario_E, id_eixo_fk, data_comentario_E, foto_comentario_E) VALUES ?";
+            var values = [[id_E, comentario, id_eixo, data, foto]];
             con.query(sql, [values], function (err, result) {
                 if (err) {
                     console.error("Erro ao inserir o comentário:", err);
                     return res.status(500).send("Erro ao salvar comentário.");
                 }
-
-                console.log("Número de registros inseridos:", result.affectedRows);
                 res.redirect('/estudante/home_page');
             });
         }
@@ -707,7 +730,7 @@ app.get('/estudante/lista_de_comentarios', verificarEstudante, (req, res) =>{
                 var nomefoto_adm = files.foto_adm[0].newFilename + ext;
                 var newpath = path.join(__dirname, 'public/imagens/administrador/adm_cadastro', nomefoto_adm);
     
-                fs.rename(oldpath, newpath, function (err) {
+                salvarImagem(files.foto_adm[0], 'adm_cadastro', files.foto_adm[0].newFilename, function (err) {
                     if (err) {
                         console.error("Erro ao mover o arquivo:", err);
                         return res.status(500).send("Erro no upload de imagem");
@@ -1350,6 +1373,12 @@ LIMIT 1;
 
 
 
+   module.exports = app;
+
+if (!process.env.VERCEL) {
     app.listen(3000, function () {
         console.log("Servidor Escutando na porta 3000");
+    });
+}
+
     });
