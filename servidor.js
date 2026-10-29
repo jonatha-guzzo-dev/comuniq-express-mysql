@@ -58,9 +58,9 @@ app.use(express.json());
 
 const cloudinary = require('cloudinary').v2;
 cloudinary.config({
-    cloud_name: process.env.petypxbn,
-    api_key: process.env.974651275577785,
-    api_secret: process.env.vw8SDsD99EssmE_tv055jFe1rpg
+    cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+    api_key: process.env.CLOUDINARY_API_KEY,
+    api_secret: process.env.CLOUDINARY_API_SECRET
 });
 
 function salvarImagem(file, pasta, nome, callback) {
