@@ -1,3 +1,4 @@
+const bcrypt = require('bcryptjs');
 const express = require('express');
 const mysql = require('mysql');
 const formidable = require('formidable');
@@ -8,7 +9,6 @@ const app = express();
 app.set('view engine', 'ejs');
 app.use(express.static(path.join(__dirname, 'public')));
 const crypto = require('crypto');
-const bcrypt = require('bcryptjs');
 const { Console } = require('console');
 const moment = require('moment');
 var session = require('express-session');
