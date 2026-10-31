@@ -1,11 +1,7 @@
 {
-  "version": 2,
-  "builds": [
-    {
-      "src": "servidor.js",
-      "use": "@vercel/node",
-      "config": { "includeFiles": ["views/**", "public/**"] }
+  "functions": {
+    "index.js": {
+      "includeFiles": "{views,public}/**"
     }
-  ],
-  "routes": [{ "src": "/(.*)", "dest": "servidor.js" }]
+  }
 }
