@@ -2,7 +2,15 @@
 
 Sistema de comunicação entre estudantes e gestão escolar, permitindo o envio de demandas, mediação por eixos de ensino e fórum de discussão privado.
 
-## Acesse o sit pela internet: https://comuniq-express-mysql-4u8y23lcn-jonathas2.vercel.app/
+## Acesse o sit pela internet: 
+https://comuniq-express-mysql-4u8y23lcn-jonathas2.vercel.app/
+
+## Demonstração:
+**Demonstração do usuário estudante**
+!(public/comuniQ_project_studant_demosntration.mkv)
+
+**Demonstração do usuário administrador**
+!(public/comuniQ_project_adm_demosntration.mkv)
 
 ##  Tecnologias
 - **Backend:** Node.js com Express.js
