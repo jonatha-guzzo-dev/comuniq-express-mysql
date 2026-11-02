@@ -7,10 +7,14 @@ https://comuniq-express-mysql-4u8y23lcn-jonathas2.vercel.app/
 
 ## Demonstração:
 **Demonstração do usuário estudante**
-![oi](public/comuniQ_project_studant_demosntration.mkv)
+
+https://github.com/user-attachments/assets/e99dac49-86f7-4f12-ae80-240b0b3c6fc6
+
 
 **Demonstração do usuário administrador**
-![oi](public/comuniQ_project_adm_demosntration.mkv)
+
+https://github.com/user-attachments/assets/040ee5be-7897-43a2-bf83-d396182bc5bc
+
 
 ##  Tecnologias
 - **Backend:** Node.js com Express.js
